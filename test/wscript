@@ -1,0 +1,20 @@
+#! /usr/bin/env python
+# encoding: utf-8
+
+def configure(conf):
+        pass
+
+#bld.program 目标是应用程序， bld.stlib 目标是静态库 否则是动态库
+def build(bld):
+	print '********* build %s *********' % bld.path.abspath()
+	tg = bld.program(
+		features = 'cprogram',
+                target = 'server_test',
+                uselib = bld.env['BUILD_USELIB'],
+		cflags = ['-g', '-Wall', '-fPIC'],
+                ldflags = ['-lserver', '-lpthread', '-lrt'],
+                includes = ['../include', '../server'],
+		libpath = ['../build/server'],
+		use = ['server'],
+                source = bld.path.ant_glob('*.c')
+        )

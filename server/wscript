@@ -1,0 +1,21 @@
+#! /usr/bin/env python
+# encoding: utf-8
+
+def options(opt):
+        opt.load('compiler_c compiler_cxx')
+
+def configure(conf):
+        conf.load('compiler_c compiler_cxx')
+
+def build(bld):
+	print '********* build %s *********' % bld.path.abspath()
+	#生成libSendMsgModel.so
+	obj = bld(
+		features = 'c cshlib',
+                target = 'server',
+                uselib = bld.env['BUILD_USELIB'],
+				cflags = ['-g', '-Wall', '-fPIC'],
+                linkflags = ['-shared', '-lpthread'],
+                includes = ['../include', '../services'],
+                source = bld.path.parent.ant_glob('services/*.c') + bld.path.ant_glob('*.c')
+        )
