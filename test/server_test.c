@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
 		client_cancel_thread(thread_id[4], "client4_cmd");
 		client_disconnect(client4);
 
-		//if(cnt++ > 100) break;
+		if(cnt++ > 100) break;
 	}
 
 	printf("Total send msg: %d, total receive msg: %d, discard msg: %d, service cnt: %d\n", 
