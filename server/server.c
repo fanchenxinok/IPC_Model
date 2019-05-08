@@ -20,9 +20,16 @@
 #include "common.h"
 
 /*************************************************
-* 实现功能： server提供一些功能，client通过unix tcp本地连接到
-* 		 server请求执行某些功能，server执行完返回callback
-		 给client.
+
+功能：Linux上实现基于TCP和Unix domain Socket的本地IPC通信模型。
+
+结构：采用CSS(client-server-service)模式，一个server负责管理client
+	  和service服务。可以在server上注册多个service，service是可以自
+	  定义及添加的，一个Client在connet到server时可以指定绑定到某个service，
+	  这个service可以为client提供服务。一个service可以绑定多个client。
+	  Client和server建立的是Unix domain socket链接，log接受器和server
+	  建立的是TCP链接。
+
 **************************************************/
 
 #define SERVER_LOG_ERR(msg, ...)	    LOG_ERR(LOG_COL_RED_YLW "[SERVER_ERR]"msg LOG_COL_END"\n", ##__VA_ARGS__)
