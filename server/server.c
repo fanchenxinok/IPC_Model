@@ -59,7 +59,8 @@ typedef enum
 typedef enum
 {
 	CLIENT_CONNECT = 0,
-	CLIENT_DISCONN
+	CLIENT_DISCONN,
+	CLIENT_REBIND_SERVICE
 }enClientStatus;
 
 typedef struct
@@ -217,7 +218,8 @@ static void server_show_clients()
         {
             stClientInfo *pClientInfo = (stClientInfo*)pNode->data;
             if(pClientInfo) {
-                printf("[client: %p] ID: %d, Name: %s\n", pClientInfo, pClientInfo->client_id, pClientInfo->name);
+                printf("[client ID: %d], Name: %s, socket_fd = %d, cb_async = %d\n", 
+					pClientInfo->client_id, pClientInfo->name, pClientInfo->socket_fd, pClientInfo->cb_async);
             }
             else {
                 printf("pClientInfo is NULL\n");
@@ -299,7 +301,7 @@ int server_get_service(const char* service_name)
 		// iterate all list
 		int handle = 0; 
 		for(; handle < MAX_SERVICE_NUM; handle++) {
-			if(strcmp(pServer->service_list[handle]->service_name, service_name) == 0) {
+			if(pServer->service_list[handle] && strcmp(pServer->service_list[handle]->service_name, service_name) == 0) {
 				pthread_mutex_unlock(&pServer->mutex_lock);
 				SERVER_LOG_NOTIFY("Service: %s get success, handle = %d", service_name, handle);
 				return handle;
@@ -324,7 +326,14 @@ static void* server_service_dispose_msg(void* data)
 		stMsg *pMsg = NULL;
 		if(mailbox_recv_msg(pServer->service_mailbox_ids[service_handle], (void**)&pMsg, -1) != -1){
 			if(pMsg) {
-				pService->execute_command((void*)pMsg);
+				message_log_filter(pMsg, "server_service_dispose_msg");
+				if(pMsg->service_handle != service_handle) {
+					printf("NNNNNNNNNNNNNNNN service: %d, msg service: %d\n",
+						service_handle, pMsg->service_handle);
+				}
+				else {
+					pService->execute_command((void*)pMsg);
+				}
 				mailbox_free_msgbuff((void*)pMsg);
 			}
 			else {
@@ -337,6 +346,7 @@ static void* server_service_dispose_msg(void* data)
 
 static void server_dispatch_msg(stServer *pServer, stMsg* msg)
 {
+	message_log_filter(msg, "server_dispatch_msg");
 	stMsg *pMsg = NULL;
 	if((msg->service_handle < 0) || (msg->service_handle >= MAX_SERVICE_NUM)) {
 		SERVER_LOG_WARNING("The message from client: %d, but the service handle is invalid: %d", msg->owner, msg->service_handle);
@@ -398,6 +408,8 @@ static void* server_run(void *data)
 					stMsg msg= {0};
 					if(read(events[i].data.fd, &msg, sizeof(stMsg)) > 0){
 						SERVER_LOG_WARNING("[server]rec: client socket id: %d, msgType: 0x%x", events[i].data.fd, msg.msg_type);
+
+						message_log_filter(&msg, "server_run");
 						/* get client information */
 						if(msg.msg_type == CLIENT_CONNECT_MSG_TYPE) {
 							server_add_client(events[i].data.fd, &msg);
@@ -632,6 +644,7 @@ void server_stop()
 void server_service_transact_msg(void *msg)
 {
 	stMsg *pMsg = (stMsg*)msg;
+	message_log_filter(pMsg, "server_service_transact_msg");
 	stClientInfo *pClientInfo = (stClientInfo*)server_find_client(pMsg->owner);
 	//printf("=== client: %d, cb_async = %d\n", pClientInfo->client_id, pClientInfo->cb_async);
 	/* only when client connect specify it need async call back then do the following  */
@@ -677,7 +690,7 @@ static void* execute_client_cb(void *data)
 	pthread_cleanup_push(epoll_close_callback, &epoll_fd);
 	
 	struct epoll_event events[1];
-    while(pClientProxy->status == CLIENT_CONNECT)
+    while(pClientProxy->status != CLIENT_DISCONN)
     {
 		memset(events, 0, sizeof(struct epoll_event) * 1);
 		int eventNum = epoll_wait(epoll_fd, events, 1, -1);
@@ -693,7 +706,12 @@ static void* execute_client_cb(void *data)
 				
 				stMsg msg= {0};
 				if(read(events[i].data.fd, &msg, sizeof(stMsg)) > 0){
-					pService->async_execute_cb(&msg);
+					if(msg.service_handle == pClientProxy->service_handle) {
+						pService = pServer->service_list[pClientProxy->service_handle];
+						if(pService) {
+							pService->async_execute_cb(&msg);
+						}
+					}
 				}
 				else {
 					fprintf(stderr, "[client run]No data to read!\n");
@@ -784,6 +802,61 @@ FAIL:
 	free(pClientProxy);
 	pthread_mutex_unlock(&pServer->mutex_lock);
 	return NULL;
+}
+
+
+void client_rebind_service(stClientProxy *pClientProxy, const char* service_name)
+{
+	if(!pClientProxy || !service_name) return;
+	stServer *pServer = server_get_handle();
+	if(!pServer || pServer->status != SERVER_RUN || pClientProxy->status == CLIENT_DISCONN) {
+		fprintf(stderr, "[client] rebind to service fail! line: %d\n", __LINE__);
+		return;
+	}
+
+	// get rebind service handle
+	int service_handle = server_get_service(service_name);
+	if(service_handle < 0) {
+		printf("EEEEEEEEEEEE service: %s can not find!\n", service_name);
+		return;
+	}
+
+	// if current service handle is not the same to current service handle
+	if((pClientProxy->service_handle != -1) && (pClientProxy->service_handle != service_handle)){
+		pthread_mutex_lock(&pServer->mutex_lock);
+		pClientProxy->status = CLIENT_REBIND_SERVICE;
+		stMsg msg;
+		msg.msg_type = SYNC_MSG;
+		if(pClientProxy->thread_id == -1) {
+			msg.cb_async = 0;
+		}
+		else {
+			msg.cb_async = 1;
+		}
+		msg.sync_wait_id = pClientProxy->sync_mailbox_id;
+		msg.service_handle = pClientProxy->service_handle;
+		msg.owner = pClientProxy->client_id;
+		write(pClientProxy->socket_fd, &msg, sizeof(stMsg));
+		//wait until service all task completed
+		printf("WWWWWWWWWWWWWWWWWW current service: %d, rebind service: %d, cb_async = %d, mailbox_id = %d\n", 
+			pClientProxy->service_handle, service_handle, msg.cb_async, msg.sync_wait_id);
+		pthread_mutex_unlock(&pServer->mutex_lock);
+
+		message_log_filter(&msg, "client_rebind_service");
+		message_sync_wait(pClientProxy->sync_mailbox_id, -1);
+
+		pthread_mutex_lock(&pServer->mutex_lock);
+		pClientProxy->service_handle = service_handle;
+		pClientProxy->status = CLIENT_CONNECT;
+		pthread_mutex_unlock(&pServer->mutex_lock);
+
+		printf("RRRRRRRRRRRRRRRRRR client: %d, rebind service: %s\n", pClientProxy->client_id, service_name);
+	}
+	else {
+		printf("EEEEEEEEEEEEEEEEEE current service: %d, rebind service: %d\n", pClientProxy->service_handle, service_handle);
+	}
+	
+	return;
 }
 
 void client_disconnect(stClientProxy *pClientProxy)

@@ -3,6 +3,29 @@
 
 #include "mailbox.h"
 
+/* 
+* SYNC_MSG 用于当client需要切换绑定的service时，
+* 调用client_rebind_service会发送这个消息以保证
+* 以前的所有消息都处理完毕。
+* xxxx_service.c 的excute_command()函数必须添加：
+	case SYNC_MSG:
+		{
+			if(pMsg->cb_async) {
+				memcpy(&msg, pMsg, sizeof(stMsg));
+				server_service_transact_msg(&msg);
+			}
+			else {
+				message_sync_unwait(pMsg->sync_wait_id);
+			}			
+		}break;
+
+* async_execute_callback()函数必须添加：
+	case SYNC_MSG:
+			message_sync_unwait(pMsg->sync_wait_id);
+			break;
+*/
+#define SYNC_MSG (0x1122aabb)
+
 typedef void (*call_back)(void* user, int errno);
 
 /*
@@ -68,6 +91,8 @@ cout << a << b << endl;
 int message_dispach(void* pClientProxy, stMsg *pMsg);
 
 void message_sync_unwait(int sync_mailbox_id);
+
+void message_log_filter(stMsg *pMsg, const char* flag);
 
 
 #endif

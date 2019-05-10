@@ -37,7 +37,9 @@ static void execute_command(void *command)
 	int a, b, c;
 	stMsg msg = {0};
 	stMsg *pMsg = (stMsg*)command;
+	memcpy(&msg, pMsg, sizeof(stMsg));
 	//printf("dispose msgtype: %d", pMsg->msg_type);
+	message_log_filter(pMsg, "arithmetic, execute_command");
     switch(pMsg->msg_type)
     {
         case AS_ADD_REQ:
@@ -117,6 +119,15 @@ static void execute_command(void *command)
 				cmd_cnt++;
 			}
             break;
+		case SYNC_MSG:
+		{
+			if(pMsg->cb_async) {
+				server_service_transact_msg(&msg);
+			}
+			else {
+				message_sync_unwait(pMsg->sync_wait_id);
+			}			
+		}break;
         default:
             //printf("[arithmetic_service]Owner: %d, msg: %s\n", pMsg->owner, pMsg->msgText);
 			msg.msg_type = AS_SAY_RES;
@@ -144,6 +155,7 @@ static void async_execute_callback(void *msg)
 	cmd_cnt++;
 	stMsg *pMsg = (stMsg*)msg;
 	int c = 0;
+	message_log_filter(pMsg, "arithmetic, async_execute_callback");
 	switch(pMsg->msg_type)
 	{
 		case AS_ADD_RES:
@@ -161,6 +173,9 @@ static void async_execute_callback(void *msg)
 		case AS_INF_RES:
 			message_depacker(pMsg->msgText, sizeof(int), &c, -1);
 			if(pMsg->cb) ((call_back)(pMsg->cb))(pMsg->msgText, 0);
+			break;
+		case SYNC_MSG:
+			message_sync_unwait(pMsg->sync_wait_id);
 			break;
 		default:
 			message_depacker(pMsg->msgText, sizeof(int), &c, -1);

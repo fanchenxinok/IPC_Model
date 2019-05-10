@@ -5,7 +5,8 @@
 typedef enum
 {
 	CLIENT_CONNECT = 0,
-	CLIENT_DISCONN
+	CLIENT_DISCONN,
+	CLIENT_REBIND_SERVICE
 }enClientStatus;
 	
 typedef struct
@@ -91,7 +92,8 @@ int message_dispatch(void* pClientProxy, stMsg *pMsg)
 {
 	if(!pClientProxy || !pMsg) return -1;
 	stCommand *pCommand = (stCommand*)pClientProxy; 
-	if(pCommand->status == CLIENT_DISCONN) { 
+	if((pCommand->status == CLIENT_DISCONN) && (pCommand->status == CLIENT_REBIND_SERVICE)) {
+		printf("MMMMMMMMMMMMMMMMM: client status: %d\n", pCommand->status);
 		return -1;
 	}
     pMsg->owner = pCommand->client_id;
@@ -108,4 +110,14 @@ int message_dispatch(void* pClientProxy, stMsg *pMsg)
 		}
 		return 0;
 	}
+}
+
+void message_log_filter(stMsg *pMsg, const char* flag)
+{
+	#if 0
+	if(pMsg->msg_type == SYNC_MSG) {
+		printf("[%s] SSSSSSSSSSSSSS Type: 0x%x, owner = %d, service_handle = %d, cb_async = %d, sync_wait_id = %d\n",
+			flag, pMsg->msg_type, pMsg->owner, pMsg->service_handle, pMsg->cb_async, pMsg->sync_wait_id);
+	}
+	#endif
 }

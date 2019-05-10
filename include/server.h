@@ -23,11 +23,17 @@ void server_delete_service(const char* service_name);
 
 /*
 *  client_name: client name
-*  service_name: specify which service the client want to connect 
+*  service_name: specify which service the client want to bind 
 *  execute_cb_async: if client callback function is too take time, it will occupy too much time of service to execute cb
 	so it is need to create a thread to execute the client callback.
 */
 stClientProxy* client_connect(const char* client_name, const char* service_name, int execute_cb_async);
+
+/*
+*	client rebind other service
+*/
+void client_rebind_service(stClientProxy *pClientProxy, const char* service_name);
+
 void client_disconnect(stClientProxy *pClientProxy);
 /* if service dispose the request then need execute callback async, 
 	so use this interface to send async callback execute command to client,
