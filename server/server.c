@@ -843,7 +843,7 @@ void client_rebind_service(stClientProxy *pClientProxy, const char* service_name
 		pthread_mutex_unlock(&pServer->mutex_lock);
 
 		message_log_filter(&msg, "client_rebind_service");
-		message_sync_wait(pClientProxy->sync_mailbox_id, -1);
+		message_sync_wait(pClientProxy->sync_mailbox_id, 1000); // timeout is 1000 ms
 
 		pthread_mutex_lock(&pServer->mutex_lock);
 		pClientProxy->service_handle = service_handle;
