@@ -88,7 +88,7 @@ cout << a << b << endl;
 */
 
 /* send message from client to server if success return msg size else return -1 */
-int message_dispach(void* pClientProxy, stMsg *pMsg);
+int message_dispach(void* pClientProxy, stMsg *pMsg, stCbInfo *pCbInfo);
 
 void message_sync_unwait(int sync_mailbox_id);
 

@@ -88,7 +88,7 @@ void message_sync_unwait(int sync_mailbox_id)
 	}
 }
 
-int message_dispatch(void* pClientProxy, stMsg *pMsg)
+int message_dispatch(void* pClientProxy, stMsg *pMsg, stCbInfo *pCbInfo)
 {
 	if(!pClientProxy || !pMsg) return -1;
 	stCommand *pCommand = (stCommand*)pClientProxy; 
@@ -96,6 +96,18 @@ int message_dispatch(void* pClientProxy, stMsg *pMsg)
 		printf("MMMMMMMMMMMMMMMMM: client status: %d\n", pCommand->status);
 		return -1;
 	}
+	
+	if(pCbInfo) {
+		pMsg->cb = pCbInfo->cb_func;
+		pMsg->cb_async = pCbInfo->cb_async;
+		pMsg->sync_wait_time = pCbInfo->wait_time;
+	}
+	else {
+		pMsg->cb = NULL;
+		pMsg->cb_async = 0;
+		pMsg->sync_wait_time = 0;
+	}
+	
     pMsg->owner = pCommand->client_id;
 	pMsg->service_handle = pCommand->service_handle;
 	if(pMsg->cb_async) {
