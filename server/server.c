@@ -129,6 +129,32 @@ static void server_set_status(enServerStatus status)
 	}
 }
 
+static void server_show_clients()
+{
+	printf("\n----------------------------------------------------- \n");
+    stServer *pServer = server_get_handle();
+	printf("Server have %d clients:\n", pServer->pClient_list->cnt);
+    if(pServer) {
+        stListNode *pNode = pServer->pClient_list->pHead->pNext;
+        while(pNode)
+        {
+            stClientInfo *pClientInfo = (stClientInfo*)pNode->data;
+            if(pClientInfo) {
+                printf("[client ID: %d], Name: %s, socket_fd = %d, cb_async = %d\n", 
+					pClientInfo->client_id, pClientInfo->name, pClientInfo->socket_fd, pClientInfo->cb_async);
+            }
+            else {
+                printf("pClientInfo is NULL\n");
+            }
+            pNode = pNode->pNext;
+        }
+    }
+    else {
+        fprintf(stderr, "server has not create!\n");
+    }
+	printf("----------------------------------------------------- \n");
+}
+
 static enServerStatus server_get_status()
 {
 	stServer *pServer = server_get_handle();
@@ -158,6 +184,7 @@ static void server_add_client(int socket_fd, stMsg *pMsg)
     printf("===pClientInfo: %p, client id: %d, name: %s\n", pClientInfo, pClientInfo->client_id, pClientInfo->name);
     list_insert_last(pServer->pClient_list, (void**)&pClientInfo);
 	pthread_mutex_unlock(&pServer->mutex_lock);
+	server_show_clients();
 }
 
 static void* server_find_client(int client_id)
@@ -205,32 +232,6 @@ static void server_delete_client(int client_id)
 		list_delete_node(pServer->pClient_list, (void*)&pClientInfo);
 	}
 	pthread_mutex_unlock(&pServer->mutex_lock);
-}
-
-static void server_show_clients()
-{
-	printf("\n----------------------------------------------------- \n");
-    stServer *pServer = server_get_handle();
-	printf("Server have %d clients:\n", pServer->pClient_list->cnt);
-    if(pServer) {
-        stListNode *pNode = pServer->pClient_list->pHead->pNext;
-        while(pNode)
-        {
-            stClientInfo *pClientInfo = (stClientInfo*)pNode->data;
-            if(pClientInfo) {
-                printf("[client ID: %d], Name: %s, socket_fd = %d, cb_async = %d\n", 
-					pClientInfo->client_id, pClientInfo->name, pClientInfo->socket_fd, pClientInfo->cb_async);
-            }
-            else {
-                printf("pClientInfo is NULL\n");
-            }
-            pNode = pNode->pNext;
-        }
-    }
-    else {
-        fprintf(stderr, "server has not create!\n");
-    }
-	printf("----------------------------------------------------- \n");
 }
 
 static void server_show_info()
@@ -795,7 +796,7 @@ stClientProxy* client_connect(const char* client_name, const char* service_name,
        
 	pthread_mutex_unlock(&pServer->mutex_lock);
 	printf("++++ Client: %s connect to server socket fd = %d, client side socket fd = %d\n", client_name, pServer->socket_fd, pClientProxy->socket_fd);
-	server_show_clients();
+	
 	return pClientProxy;
 
 FAIL:
@@ -843,7 +844,7 @@ void client_rebind_service(stClientProxy *pClientProxy, const char* service_name
 		pthread_mutex_unlock(&pServer->mutex_lock);
 
 		message_log_filter(&msg, "client_rebind_service");
-		message_sync_wait(pClientProxy->sync_mailbox_id, -1);
+		message_sync_wait(pClientProxy->sync_mailbox_id, 1000); // timeout is 1000 ms
 
 		pthread_mutex_lock(&pServer->mutex_lock);
 		pClientProxy->service_handle = service_handle;
