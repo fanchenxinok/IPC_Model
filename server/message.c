@@ -92,7 +92,7 @@ int message_dispatch(void* pClientProxy, stMsg *pMsg, stCbInfo *pCbInfo)
 {
 	if(!pClientProxy || !pMsg) return -1;
 	stCommand *pCommand = (stCommand*)pClientProxy; 
-	if((pCommand->status == CLIENT_DISCONN) && (pCommand->status == CLIENT_REBIND_SERVICE)) {
+	if((pCommand->status == CLIENT_DISCONN)||(pCommand->status == CLIENT_REBIND_SERVICE)) {
 		printf("MMMMMMMMMMMMMMMMM: client status: %d\n", pCommand->status);
 		return -1;
 	}

@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
 
 		const char* name = (flag == 1) ? CAMERA_SERVICE_NAME : ARITHMETIC_SERVICE_NAME;
 		if(cnt % 3 == 0) {
-			test_info[3].bindService = -1;
+			//test_info[3].bindService = -1;
 			client_rebind_service(client3, name);
 			test_info[3].bindService = flag;
 		}
