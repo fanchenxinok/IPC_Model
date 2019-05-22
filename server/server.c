@@ -342,6 +342,7 @@ static void* server_service_dispose_msg(void* data)
 			}
 		}
 	}
+	printf("TTTTTTTTTTTTTTTTTT Service %s 's thread terminate!\n", pService->service_name);
 	return NULL;
 }
 
@@ -353,12 +354,21 @@ static void server_dispatch_msg(stServer *pServer, stMsg* msg)
 		SERVER_LOG_WARNING("The message from client: %d, but the service handle is invalid: %d", msg->owner, msg->service_handle);
 		return;
 	}
-	if(mailbox_get_msgbuff((void**)&pMsg) != -1) {
-		memcpy(pMsg, msg, sizeof(stMsg));
-		mailbox_send_msg(pServer->service_mailbox_ids[pMsg->service_handle], (void*)pMsg, 1000);
+
+	if(pServer->service_status[msg->service_handle] != SERVICE_FREE) {
+		if(mailbox_get_msgbuff((void**)&pMsg) != -1) {
+			memcpy(pMsg, msg, sizeof(stMsg));
+			mailbox_send_msg(pServer->service_mailbox_ids[pMsg->service_handle], (void*)pMsg, 1000);
+		}
+		else {
+			SERVER_LOG_WARNING("mailbox_get_msgbuff Fail, so this message be discarded");
+		}
 	}
 	else {
-		SERVER_LOG_WARNING("mailbox_get_msgbuff Fail, so this message be discarded");
+		SERVER_LOG_WARNING("server_dispatch_msg but service: %d is not run!", msg->service_handle);
+		if(msg->sync_wait_time != 0 && msg->sync_wait_id != -1) {
+			message_sync_unwait(msg->sync_wait_id);
+		}
 	}
 }
 
@@ -522,6 +532,12 @@ int server_add_service(stService *pService)
 				printf("Service: %s add success\n", pService->service_name);
 				return 0;
 			}
+			else {
+				if(pServer->service_list[i] == pService) {
+					printf("Service %s alread added!\n", pService->service_name);
+					break;
+				}
+			}
 		}
 		pthread_mutex_unlock(&pServer->mutex_lock);
 	}
@@ -542,7 +558,6 @@ void server_delete_service(const char* service_name)
 				if(pServer->service_thread_ids[i] != -1)
 					pthread_join(pServer->service_thread_ids[i], NULL);
 				
-				pServer->service_status[i] = SERVICE_FREE;
 				pServer->service_list[i] = NULL;
 				pServer->service_cnt--;
 				mailbox_destory(pServer->service_mailbox_ids[i]);

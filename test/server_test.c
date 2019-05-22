@@ -248,7 +248,18 @@ int main(int argc, char *argv[])
 			client_rebind_service(client7, name);
 			test_info[7].bindService = flag;
 		}
+
 		flag = !flag;
+
+		#if 0
+		if(cnt % 10 == 0) {
+			run_camera_service();
+		}
+
+		if(cnt % 15 == 0) {
+			stop_camera_service();
+		}
+		#endif
 	}
 
 	printf("Total send msg: %d, total receive msg: %d, discard msg: %d, service cnt: %d\n", 
