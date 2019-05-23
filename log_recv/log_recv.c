@@ -116,9 +116,11 @@ int main(int argc, char *argv[])
 
 	signal(SIGINT, signal_handle); // ctr+c
 
-	if((socket_fd = socket_inet_connect(argv[1], PORT_NUM)) < 0) {
-		fprintf(stderr, "connect inet socket fail!\n");
-		exit(-1);
+	int retry = 0;
+	while((socket_fd = socket_inet_connect(argv[1], PORT_NUM)) < 0) {
+		fprintf(stderr, "connect inet socket fail, retry %d!\n", ++retry);
+		if(retry > 10) exit(-1);
+		usleep(1000000);
 	}
 
 	int epoll_fd = epoll_create(1);

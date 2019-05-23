@@ -26,15 +26,17 @@ static void fcntl_set_cloexec(int fd)
 void socket_show_ip_addrs()
 {
  
-    struct ifaddrs * ifAddrStruct=NULL;
-    void * tmpAddrPtr=NULL;
+    struct ifaddrs* ifAddrStruct = NULL, *tmpIfAddrStruct = NULL;
+    void * tmpAddrPtr = NULL;
  
     getifaddrs(&ifAddrStruct);
 
+	tmpIfAddrStruct = ifAddrStruct;
+
 	printf("==========================\n");
-    while (ifAddrStruct!=NULL) 
+    while (ifAddrStruct != NULL) 
 	{
-        if (ifAddrStruct->ifa_addr->sa_family==AF_INET)
+        if (ifAddrStruct->ifa_addr->sa_family == AF_INET)
 		{   // check it is IP4
             // is a valid IP4 Address
             tmpAddrPtr = &((struct sockaddr_in *)ifAddrStruct->ifa_addr)->sin_addr;
@@ -42,7 +44,7 @@ void socket_show_ip_addrs()
             inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
             printf("%s IPV4 Address %s\n", ifAddrStruct->ifa_name, addressBuffer); 
         }
-		else if (ifAddrStruct->ifa_addr->sa_family==AF_INET6)
+		else if (ifAddrStruct->ifa_addr->sa_family == AF_INET6)
 		{   // check it is IP6
             // is a valid IP6 Address
             tmpAddrPtr=&((struct sockaddr_in *)ifAddrStruct->ifa_addr)->sin_addr;
@@ -53,7 +55,7 @@ void socket_show_ip_addrs()
         ifAddrStruct = ifAddrStruct->ifa_next;
     }
 	printf("==========================\n");
-	freeifaddrs(ifAddrStruct);
+	freeifaddrs(tmpIfAddrStruct);
 }
 
 int socket_local_create(const char* server_name, int listen_num)
